@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# 数据库文件（使用挂载卷）
+*.db
+*.db-journal
+
+# 测试文件
+test_*.py
+check_*.py
+verify_*.py
+compare_*.py
+analyze_*.py
+fix_*.py
+
+# 文档
+*.md
+!README.md
+
+# 配置文件（通过挂载卷提供）
+config.json
+update_progress.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 日志
+*.log
+
+# 其他
+.DS_Store
+.git/
+.gitignore
+

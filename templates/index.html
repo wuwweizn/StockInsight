@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockInsight - 股票洞察分析系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .navbar-brand {
+            font-weight: bold;
+        }
+        .card {
+            margin-bottom: 20px;
+        }
+        .table-responsive {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .progress-container {
+            display: none;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+        .stat-card {
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+        /* 股票代码自动补全样式 */
+        .autocomplete-dropdown {
+            position: absolute;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            margin-top: 0;
+            top: 100%;
+            left: 0;
+        }
+        
+        .autocomplete-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background-color 0.2s;
+        }
+        
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+        
+        .autocomplete-item:hover {
+            background-color: #f8f9fa !important;
+        }
+        
+        .autocomplete-item strong {
+            color: #007bff;
+            margin-right: 8px;
+        }
+        
+        .autocomplete-item .text-muted {
+            font-size: 0.9em;
+        }
+        
+        .autocomplete-item small {
+            font-size: 0.85em;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#"><i class="bi bi-graph-up"></i> StockInsight</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showTab('data-management', this); return false;">数据管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showTab('stock-analysis', this); return false;">单只股票分析</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showTab('month-filter', this); return false;">月份筛选统计</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showTab('industry-analysis', this); return false;">行业分析</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showTab('source-compare', this); return false;">数据源对比</a>
+                    </li>
+                    <li class="nav-item admin-only" style="display: none;">
+                        <a class="nav-link" href="#" onclick="showTab('config', this); return false;">系统配置</a>
+                    </li>
+                    <li class="nav-item admin-only" style="display: none;">
+                        <a class="nav-link" href="#" onclick="showTab('user-management', this); return false;">用户管理</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <span class="navbar-text me-3" id="current-user-info" style="display: none;"></span>
+                        <button class="btn btn-outline-light btn-sm" id="logout-btn" onclick="logout()" style="display: none;">登出</button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 登录页面 -->
+    <div id="login-page" class="container mt-5" style="max-width: 400px;">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-box-arrow-in-right"></i> 用户登录</h5>
+            </div>
+            <div class="card-body">
+                <form id="login-form" onsubmit="event.preventDefault(); login(); return false;">
+                    <div class="mb-3">
+                        <label class="form-label">用户名</label>
+                        <input type="text" class="form-control" id="login-username" placeholder="请输入用户名" required autofocus>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">密码</label>
+                        <input type="password" class="form-control" id="login-password" placeholder="请输入密码" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">登录</button>
+                </form>
+                <div id="login-error" class="alert alert-danger mt-3" style="display: none;"></div>
+                <div class="alert alert-info mt-3">
+                    <small><i class="bi bi-info-circle"></i> 如需账号授权，请联系管理员微信：<strong>yyongzf8</strong></small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容区域（登录后显示） -->
+    <div id="main-content" class="container-fluid mt-4" style="display: none;">
+        <!-- 数据管理 -->
+        <div id="data-management" class="tab-content" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-database"></i> 数据管理</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6>数据状态</h6>
+                                    <p id="data-status">加载中...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">全量更新模式：</label>
+                                <div class="btn-group" role="group">
+                                    <input type="radio" class="btn-check" name="fullUpdateMode" id="fullUpdateModeSupplement" value="supplement" checked>
+                                    <label class="btn btn-outline-primary" for="fullUpdateModeSupplement">补充模式</label>
+                                    
+                                    <input type="radio" class="btn-check" name="fullUpdateMode" id="fullUpdateModeOverwrite" value="overwrite">
+                                    <label class="btn btn-outline-danger" for="fullUpdateModeOverwrite">覆盖模式</label>
+                                </div>
+                                <small class="form-text text-muted d-block mt-2">
+                                    <strong>补充模式：</strong>只添加缺失的数据，不会覆盖已有数据（推荐）<br>
+                                    <strong>覆盖模式：</strong>先删除当前数据源的所有数据，然后重新获取（确保数据最新）
+                                </small>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="updateData('full')">全量更新数据</button>
+                        <button class="btn btn-success" onclick="updateData('incremental')">增量更新数据</button>
+                    </div>
+                    <div class="progress-container" id="update-progress-container">
+                        <div class="progress mb-2">
+                            <div class="progress-bar" role="progressbar" id="update-progress-bar" style="width: 0%"></div>
+                        </div>
+                        <p id="update-progress-message"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 单只股票分析 -->
+        <div id="stock-analysis" class="tab-content" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-graph-up-arrow"></i> 单只股票分析</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="btn-group" role="group">
+                                <input type="radio" class="btn-check" name="stock-analysis-type" id="stock-single-month" value="single" checked>
+                                <label class="btn btn-outline-primary" for="stock-single-month">单月统计</label>
+                                
+                                <input type="radio" class="btn-check" name="stock-analysis-type" id="stock-multi-month" value="multi">
+                                <label class="btn btn-outline-primary" for="stock-multi-month">按月统计</label>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 单月统计 -->
+                    <div id="stock-single-month-form">
+                        <div class="row mb-3">
+                            <div class="col-md-2" style="position: relative;">
+                                <label class="form-label">股票代码/名称</label>
+                                <input type="text" class="form-control" id="stock-code" placeholder="输入代码或名称" autocomplete="off">
+                                <div id="stock-autocomplete" class="autocomplete-dropdown" style="display: none;"></div>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">月份</label>
+                                <select class="form-select" id="stock-month">
+                                    <option value="1">1月</option>
+                                    <option value="2">2月</option>
+                                    <option value="3">3月</option>
+                                    <option value="4">4月</option>
+                                    <option value="5">5月</option>
+                                    <option value="6">6月</option>
+                                    <option value="7">7月</option>
+                                    <option value="8">8月</option>
+                                    <option value="9">9月</option>
+                                    <option value="10">10月</option>
+                                    <option value="11">11月</option>
+                                    <option value="12">12月</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">起始年份</label>
+                                <input type="number" class="form-control" id="stock-start-year" value="2000" min="2000">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">结束年份</label>
+                                <input type="number" class="form-control" id="stock-end-year" value="2024" min="2000">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">数据源</label>
+                                <select class="form-select" id="stock-data-source">
+                                    <option value="">使用默认</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">&nbsp;</label>
+                                <button class="btn btn-primary w-100" onclick="analyzeStock()">查询</button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 按月统计 -->
+                    <div id="stock-multi-month-form" style="display: none;">
+                        <div class="row mb-3">
+                            <div class="col-md-2" style="position: relative;">
+                                <label class="form-label">股票代码/名称</label>
+                                <input type="text" class="form-control" id="stock-multi-code" placeholder="输入代码或名称" autocomplete="off">
+                                <div id="stock-multi-autocomplete" class="autocomplete-dropdown" style="display: none;"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">选择月份（可多选）</label>
+                                <select class="form-select" id="stock-multi-months" multiple size="4">
+                                    <option value="1">1月</option>
+                                    <option value="2">2月</option>
+                                    <option value="3">3月</option>
+                                    <option value="4">4月</option>
+                                    <option value="5">5月</option>
+                                    <option value="6">6月</option>
+                                    <option value="7">7月</option>
+                                    <option value="8">8月</option>
+                                    <option value="9">9月</option>
+                                    <option value="10">10月</option>
+                                    <option value="11">11月</option>
+                                    <option value="12">12月</option>
+                                </select>
+                                <small class="form-text text-muted">按住Ctrl/Cmd键可多选，不选择则查询所有月份</small>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">起始年份</label>
+                                <input type="number" class="form-control" id="stock-multi-start-year" value="2000" min="2000">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">结束年份</label>
+                                <input type="number" class="form-control" id="stock-multi-end-year" value="2024" min="2000">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">数据源</label>
+                                <select class="form-select" id="stock-multi-data-source">
+                                    <option value="">使用默认</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <button class="btn btn-primary" onclick="analyzeStockMultiMonth()">查询按月统计</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="stock-result"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 月份筛选统计 -->
+        <div id="month-filter" class="tab-content" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-calendar-month"></i> 月份筛选统计</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-2">
+                            <label class="form-label">月份</label>
+                            <select class="form-select" id="filter-month">
+                                <option value="1">1月</option>
+                                <option value="2">2月</option>
+                                <option value="3">3月</option>
+                                <option value="4">4月</option>
+                                <option value="5">5月</option>
+                                <option value="6">6月</option>
+                                <option value="7">7月</option>
+                                <option value="8">8月</option>
+                                <option value="9">9月</option>
+                                <option value="10">10月</option>
+                                <option value="11">11月</option>
+                                <option value="12">12月</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">起始年份</label>
+                            <input type="number" class="form-control" id="filter-start-year" value="2000" min="2000">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">结束年份</label>
+                            <input type="number" class="form-control" id="filter-end-year" value="2024" min="2000">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">显示数量</label>
+                            <input type="number" class="form-control" id="filter-top-n" value="20" min="1" max="100">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">最小涨跌次数</label>
+                            <input type="number" class="form-control" id="filter-min-count" value="0" min="0" placeholder="上涨次数+下跌次数">
+                            <small class="form-text text-muted">0表示不限制</small>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">数据源</label>
+                            <select class="form-select" id="filter-data-source">
+                                <option value="">使用默认</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <button class="btn btn-primary w-100" onclick="filterByMonth()">查询</button>
+                        </div>
+                    </div>
+                    <div id="filter-result"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 行业分析 -->
+        <div id="industry-analysis" class="tab-content" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-building"></i> 行业分析</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-2">
+                            <label class="form-label">行业分类</label>
+                            <select class="form-select" id="industry-type" onchange="loadIndustries()">
+                                <option value="sw">申万</option>
+                                <option value="citics">中信</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">月份</label>
+                            <select class="form-select" id="industry-month">
+                                <option value="1">1月</option>
+                                <option value="2">2月</option>
+                                <option value="3">3月</option>
+                                <option value="4">4月</option>
+                                <option value="5">5月</option>
+                                <option value="6">6月</option>
+                                <option value="7">7月</option>
+                                <option value="8">8月</option>
+                                <option value="9">9月</option>
+                                <option value="10">10月</option>
+                                <option value="11">11月</option>
+                                <option value="12">12月</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">起始年份</label>
+                            <input type="number" class="form-control" id="industry-start-year" value="2000" min="2000">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">结束年份</label>
+                            <input type="number" class="form-control" id="industry-end-year" value="2024" min="2000">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">数据源</label>
+                            <select class="form-select" id="industry-data-source">
+                                <option value="">使用默认</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <button class="btn btn-primary w-100" onclick="analyzeIndustry()">查询行业统计</button>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label">选择行业</label>
+                            <select class="form-select" id="industry-select">
+                                <option value="">请先查询行业统计</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">显示数量</label>
+                            <input type="number" class="form-control" id="industry-top-n" value="20" min="1" max="100">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">数据源</label>
+                            <select class="form-select" id="industry-top-data-source">
+                                <option value="">使用默认</option>
+                            </select>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label">&nbsp;</label>
+                            <button class="btn btn-success w-100" onclick="getIndustryTopStocks()">查询行业前20支股票</button>
+                        </div>
+                    </div>
+                    <div id="industry-result"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据源对比 -->
+        <div id="source-compare" class="tab-content" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-arrow-left-right"></i> 数据源对比</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label">股票代码</label>
+                            <input type="text" class="form-control" id="compare-code" placeholder="如: 000001">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">年份</label>
+                            <input type="number" class="form-control" id="compare-year" value="2024" min="2000">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">月份</label>
+                            <select class="form-select" id="compare-month">
+                                <option value="">全部</option>
+                                <option value="1">1月</option>
+                                <option value="2">2月</option>
+                                <option value="3">3月</option>
+                                <option value="4">4月</option>
+                                <option value="5">5月</option>
+                                <option value="6">6月</option>
+                                <option value="7">7月</option>
+                                <option value="8">8月</option>
+                                <option value="9">9月</option>
+                                <option value="10">10月</option>
+                                <option value="11">11月</option>
+                                <option value="12">12月</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">日期</label>
+                            <input type="text" class="form-control" id="compare-date" placeholder="如: 20240131 (可选)">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <button class="btn btn-primary w-100" onclick="compareDataSources()">对比数据源</button>
+                        </div>
+                    </div>
+                    <div id="compare-result"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 系统配置（仅管理员） -->
+        <div id="config" class="tab-content" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-gear"></i> 系统配置</h5>
+                </div>
+                <div class="card-body">
+                    <form id="config-form">
+                        <div class="mb-3">
+                            <label class="form-label">数据源</label>
+                            <select class="form-select" id="config-data-source">
+                                <option value="akshare">akshare（推荐，数据准确）</option>
+                                <option value="tushare">Tushare</option>
+                                <option value="baostock">BaoStock</option>
+                                <option value="finnhub">FinnHub</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tushare Token</label>
+                            <input type="text" class="form-control" id="config-tushare-token" placeholder="请输入Tushare Token">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">FinnHub API Key</label>
+                            <input type="text" class="form-control" id="config-finnhub-key" placeholder="请输入FinnHub API Key">
+                        </div>
+                        <button type="button" class="btn btn-primary" onclick="saveConfig()">保存配置</button>
+                        <button type="button" class="btn btn-secondary" onclick="loadConfig()">重新加载</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- 用户管理（仅管理员） -->
+        <div id="user-management" class="tab-content" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-people"></i> 用户管理</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h6>系统设置</h6>
+                            <div class="mb-3">
+                                <label class="form-label">会话时长（小时）</label>
+                                <input type="number" class="form-control" id="session-duration" min="1" max="8760" value="24">
+                                <small class="form-text text-muted">设置用户登录后的会话有效期（1-8760小时）</small>
+                            </div>
+                            <button type="button" class="btn btn-primary" onclick="saveSystemConfig()">保存系统配置</button>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>修改密码</h6>
+                            <div class="mb-3">
+                                <label class="form-label">旧密码</label>
+                                <input type="password" class="form-control" id="old-password" placeholder="请输入旧密码">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">新密码</label>
+                                <input type="password" class="form-control" id="new-password" placeholder="请输入新密码">
+                            </div>
+                            <button type="button" class="btn btn-warning" onclick="changePassword()">修改密码</button>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="mb-3">
+                        <h6>用户列表</h6>
+                        <button type="button" class="btn btn-success mb-3" onclick="showAddUserModal()">
+                            <i class="bi bi-person-plus"></i> 添加用户
+                        </button>
+                        <div id="users-list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 添加用户模态框 -->
+        <div class="modal fade" id="addUserModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">添加用户</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="add-user-form">
+                            <div class="mb-3">
+                                <label class="form-label">用户名</label>
+                                <input type="text" class="form-control" id="add-username" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">密码</label>
+                                <input type="password" class="form-control" id="add-password" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">角色</label>
+                                <select class="form-select" id="add-role">
+                                    <option value="user">普通用户</option>
+                                    <option value="admin">管理员</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">有效期至（可选）</label>
+                                <input type="datetime-local" class="form-control" id="add-valid-until">
+                                <small class="form-text text-muted">留空表示永久有效</small>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-primary" onclick="addUser()">添加</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 编辑用户模态框 -->
+        <div class="modal fade" id="editUserModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">编辑用户</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="edit-user-form">
+                            <div class="mb-3">
+                                <label class="form-label">用户名</label>
+                                <input type="text" class="form-control" id="edit-username" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">密码</label>
+                                <input type="password" class="form-control" id="edit-password" placeholder="留空则不修改密码">
+                                <small class="form-text text-muted">留空则不修改密码</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">角色</label>
+                                <select class="form-select" id="edit-role">
+                                    <option value="user">普通用户</option>
+                                    <option value="admin">管理员</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="edit-is-active" checked>
+                                    <label class="form-check-label" for="edit-is-active">
+                                        启用账户
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">有效期至（可选）</label>
+                                <input type="datetime-local" class="form-control" id="edit-valid-until">
+                                <small class="form-text text-muted">留空表示永久有效</small>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-primary" onclick="updateUser()">保存</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 权限管理模态框 -->
+        <div class="modal fade" id="permissionModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">权限管理 - <span id="permission-username"></span></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="permissions-list"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-primary" onclick="savePermissions()">保存权限</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="/static/app.js"></script>
+</body>
+</html>
+
