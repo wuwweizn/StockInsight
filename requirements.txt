@@ -5,7 +5,9 @@ numpy==1.26.2
 openpyxl==3.1.2
 bcrypt==4.1.1
 tushare==1.2.89
-akshare==1.12.0
+#akshare==1.12.0
+akshare>=1.17,<3.0
 baostock==0.8.8
 finnhub-python==2.4.18
 python-multipart==0.0.6
+jinja2>=3.1
