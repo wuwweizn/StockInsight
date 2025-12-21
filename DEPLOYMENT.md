@@ -2,7 +2,7 @@
 
 ## 系统要求
 
-- Python 3.8 或更高版本
+- Python 3.11 或更高版本
 - 至少 2GB 可用内存
 - 至少 1GB 可用磁盘空间（用于数据库存储）
 
@@ -11,7 +11,7 @@
 ### Windows 部署
 
 1. **安装Python**
-   - 下载并安装 Python 3.8+：https://www.python.org/downloads/
+   - 下载并安装 Python 3.11+：https://www.python.org/downloads/
    - 安装时勾选 "Add Python to PATH"
 
 2. **部署系统**

@@ -8,7 +8,7 @@ echo.
 REM 检查Python
 python --version >nul 2>&1
 if errorlevel 1 (
-    echo [错误] 未检测到Python，请先安装Python 3.8+
+    echo [错误] 未检测到Python，请先安装Python 3.11+
     pause
     exit /b 1
 )

@@ -67,7 +67,7 @@ PACKAGE.md             # 本文件
 ## 快速部署检查清单
 
 ### 直接部署
-- [ ] Python 3.8+ 已安装
+- [ ] Python 3.11+ 已安装
 - [ ] 运行 `install.bat` (Windows) 或 `install.sh` (Linux)
 - [ ] 运行 `start.bat` (Windows) 或 `./start.sh` (Linux)
 - [ ] 访问 http://localhost:8588 测试
