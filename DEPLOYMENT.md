@@ -59,37 +59,99 @@
 
 使用 `nohup` 或 `systemd` 服务：
 
-**方式1：使用 nohup**
+**方式1：使用 nohup（简单快速）**
 ```bash
+# 启动服务（后台运行）
 nohup python3 start_prod.py > app.log 2>&1 &
+
+# 查看进程
+ps aux | grep start_prod.py
+
+# 查看日志
+tail -f app.log
+
+# 停止服务（需要先找到进程ID）
+ps aux | grep start_prod.py
+kill <PID>
 ```
 
-**方式2：使用 systemd（推荐）**
+**方式2：使用 systemd（推荐，自动重启）**
 
-创建服务文件 `/etc/systemd/system/stock-analysis.service`：
+1. 复制服务文件到系统目录：
+```bash
+# 将项目中的 stock-insight.service 复制到系统目录
+sudo cp stock-insight.service /etc/systemd/system/stock-insight.service
+
+# 或者手动创建服务文件
+sudo nano /etc/systemd/system/stock-insight.service
+```
+
+2. 修改服务文件中的路径（根据实际部署路径）：
 ```ini
 [Unit]
-Description=Stock Analysis System
+Description=StockInsight - 股票洞察分析系统
 After=network.target
 
 [Service]
 Type=simple
 User=www-data
-WorkingDirectory=/opt/gpfx2
-ExecStart=/usr/bin/python3 /opt/gpfx2/start_prod.py
+WorkingDirectory=/opt/stock-insight
+ExecStart=/usr/bin/python3 /opt/stock-insight/start_prod.py
 Restart=always
 RestartSec=10
+StandardOutput=journal
+StandardError=journal
+Environment="PYTHONUNBUFFERED=1"
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-启动服务：
+3. 启动和管理服务：
 ```bash
+# 重新加载systemd配置
 sudo systemctl daemon-reload
-sudo systemctl enable stock-analysis
-sudo systemctl start stock-analysis
-sudo systemctl status stock-analysis
+
+# 设置开机自启
+sudo systemctl enable stock-insight
+
+# 启动服务
+sudo systemctl start stock-insight
+
+# 查看服务状态
+sudo systemctl status stock-insight
+
+# 查看服务日志
+sudo journalctl -u stock-insight -f
+
+# 停止服务
+sudo systemctl stop stock-insight
+
+# 重启服务
+sudo systemctl restart stock-insight
+
+# 禁用开机自启
+sudo systemctl disable stock-insight
+```
+
+**方式3：使用 screen（适合临时测试）**
+```bash
+# 安装screen（如果没有）
+sudo apt-get install screen -y
+
+# 创建新的screen会话
+screen -S stock-insight
+
+# 在screen中启动服务
+python3 start_prod.py
+
+# 按 Ctrl+A 然后按 D 退出screen（服务继续运行）
+
+# 重新连接到screen
+screen -r stock-insight
+
+# 查看所有screen会话
+screen -ls
 ```
 
 ## 方式二：VPS服务器部署
@@ -120,14 +182,33 @@ sudo firewall-cmd --permanent --add-port=8588/tcp
 sudo firewall-cmd --reload
 ```
 
-### 4. 启动服务
+### 4. 启动服务（后台运行）
+
+**推荐方式：使用 systemd 服务**
 
 ```bash
-# 使用 systemd（推荐）
-sudo systemctl start stock-analysis
+# 1. 复制服务文件（如果项目中有 stock-insight.service）
+sudo cp stock-insight.service /etc/systemd/system/
 
-# 或使用 nohup
+# 2. 修改服务文件中的路径（根据实际部署路径）
+sudo nano /etc/systemd/system/stock-insight.service
+# 修改 WorkingDirectory 和 ExecStart 中的路径
+
+# 3. 启动服务
+sudo systemctl daemon-reload
+sudo systemctl enable stock-insight
+sudo systemctl start stock-insight
+sudo systemctl status stock-insight
+```
+
+**或者使用 nohup（简单方式）**
+
+```bash
+# 后台启动
 nohup python3 start_prod.py > app.log 2>&1 &
+
+# 查看日志
+tail -f app.log
 ```
 
 ### 5. 配置Nginx反向代理（可选）
