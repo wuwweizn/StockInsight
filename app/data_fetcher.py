@@ -32,7 +32,10 @@ class DataFetcher:
                 ts.set_token(token)
                 self.pro = ts.pro_api()
         elif self.data_source == 'baostock':
-            bs.login()
+            lg = bs.login()
+            if lg.error_code != '0':
+                print(f"BaoStock登录失败: {lg.error_msg}")
+                raise Exception(f"BaoStock登录失败: {lg.error_msg}")
         elif self.data_source == 'finnhub':
             self.finnhub_key = self.config.get('finnhub.api_key', '')
         elif self.data_source == 'akshare':
@@ -202,6 +205,21 @@ class DataFetcher:
     def _get_monthly_kline_baostock(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame:
         """从BaoStock获取月K线"""
         try:
+            # 确保baostock已登录（在长时间运行的服务中，连接可能会断开）
+            # 先尝试登录，如果失败则先登出再重新登录
+            lg = bs.login()
+            if lg.error_code != '0':
+                print(f"BaoStock登录失败 {ts_code}: {lg.error_msg}，尝试重新连接...")
+                # 先登出，再重新登录
+                try:
+                    bs.logout()
+                except:
+                    pass
+                lg = bs.login()
+                if lg.error_code != '0':
+                    print(f"BaoStock重新登录失败 {ts_code}: {lg.error_msg}")
+                    return pd.DataFrame()
+            
             # BaoStock代码格式转换（如000001.SZ -> sz.000001）
             if ts_code.endswith('.SZ'):
                 code = f"sz.{ts_code.replace('.SZ', '')}"
